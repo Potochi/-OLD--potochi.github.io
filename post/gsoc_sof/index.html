@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>GSoC: Sound Open Firmware // Potochi&#39;s Adventures</title>
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <meta charset="utf-8" />
+    <meta name="generator" content="Hugo 0.87.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="author" content="Potochi" />
+    <meta name="description" content="" />
+    <link rel="stylesheet" href="https://potochi.github.io/css/main.min.4a7ec8660f9a44b08c4da97c5f2e31b1192df1d4d0322e65c0dbbc6ecb1b863f.css" />
+
+    
+    <meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="GSoC: Sound Open Firmware"/>
+<meta name="twitter:description" content="Table of Contents
+ Introduction Setting up the hardware  Physical setup TFTP server NFS server &amp; rootfs U-Boot configuration   Modifying the software  Dynamic loading Actual implementation   &ldquo;Fixing&rdquo; a variable leak in topology generation Making Intel IPC stream operations more generic Introducing fragment elapsed notification API Final conclusions  SOF Linux Kernel SOF Project    Introduction After wanting to work on an Open Source project for a long time, an opportunity finally presented itself."/>
+
+    <meta property="og:title" content="GSoC: Sound Open Firmware" />
+<meta property="og:description" content="Table of Contents
+ Introduction Setting up the hardware  Physical setup TFTP server NFS server &amp; rootfs U-Boot configuration   Modifying the software  Dynamic loading Actual implementation   &ldquo;Fixing&rdquo; a variable leak in topology generation Making Intel IPC stream operations more generic Introducing fragment elapsed notification API Final conclusions  SOF Linux Kernel SOF Project    Introduction After wanting to work on an Open Source project for a long time, an opportunity finally presented itself." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://potochi.github.io/post/gsoc_sof/" /><meta property="article:section" content="post" />
+<meta property="article:published_time" content="2021-08-13T13:34:04+03:00" />
+<meta property="article:modified_time" content="2021-08-13T13:34:04+03:00" />
+
+
+
+  </head>
+  <body>
+    <header class="app-header">
+      <a href="https://potochi.github.io"><img class="app-header-avatar" src="/icon.png" alt="Potochi" /></a>
+      <h1>Potochi&#39;s Adventures</h1>
+      <nav class="app-header-menu">
+          <a class="app-header-menu-item" href="/post/">All posts</a>
+      </nav>
+      <p>Everything low level, average Rust enjoyer</p>
+      <div class="app-header-social">
+        
+          <a href="https://github.com/Potochi" target="_blank" rel="noreferrer noopener">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-github">
+  <title>Github</title>
+  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+</svg>
+          </a>
+        
+          <a href="https://gitlab.com/Potochi" target="_blank" rel="noreferrer noopener">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-gitlab">
+  <title>Gitlab</title>
+  <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 0 1-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 0 1 4.82 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.49h8.1l2.44-7.51A.42.42 0 0 1 18.6 2a.43.43 0 0 1 .58 0 .42.42 0 0 1 .11.18l2.44 7.51L23 13.45a.84.84 0 0 1-.35.94z"></path>
+</svg>
+          </a>
+        
+      </div>
+    </header>
+    <main class="app-container">
+      
+  <article class="post">
+    <header class="post-header">
+      <h1 class ="post-title">GSoC: Sound Open Firmware</h1>
+      <div class="post-meta">
+        <div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-calendar">
+  <title>calendar</title>
+  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+</svg>
+          Aug 13, 2021
+        </div>
+        <div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-clock">
+  <title>clock</title>
+  <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+</svg>
+          13 min read
+        </div>
+      </div>
+    </header>
+    <div class="post-content">
+      <!-- raw HTML omitted -->
+<p><strong>Table of Contents</strong></p>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#setting-up-the-hardware">Setting up the hardware</a>
+<ul>
+<li><a href="#physical-setup">Physical setup</a></li>
+<li><a href="#tftp-server">TFTP server</a></li>
+<li><a href="#nfs-server--rootfs">NFS server &amp; rootfs</a></li>
+<li><a href="#u-boot-configuration">U-Boot configuration</a></li>
+</ul>
+</li>
+<li><a href="#modifying-the-software">Modifying the software</a>
+<ul>
+<li><a href="#dynamic-loading">Dynamic loading</a></li>
+<li><a href="#actual-implementation">Actual implementation</a></li>
+</ul>
+</li>
+<li><a href="#fixing-a-variable-leak-in-topology-generation">&ldquo;Fixing&rdquo; a variable leak in topology generation</a></li>
+<li><a href="#making-intel-ipc-stream-operations-more-generic">Making Intel IPC stream operations more generic</a></li>
+<li><a href="#introducing-fragment-elapsed-notification-api">Introducing fragment elapsed notification API</a></li>
+<li><a href="#final-conclusions">Final conclusions</a>
+<ul>
+<li><a href="#sof-linux-kernel">SOF Linux Kernel</a></li>
+<li><a href="#sof-project">SOF Project</a></li>
+</ul>
+</li>
+</ul>
+<!-- raw HTML omitted -->
+<h1 id="introduction">Introduction</h1>
+<p>After wanting to work on an Open Source project for a long time, an opportunity finally presented itself. After browsing
+the Google Summer of Code available projects I finally landed on a project with an interesting proposal. Sound Open Firmware
+was trying to implement a dynamic module loader for the DSP&rsquo;s found in modern <em>Intel</em> and <em>AMD</em> processors.</p>
+<p><em>First of all, I want to thank my mentor Daniel Baluta for his amazing support and knowledge.</em></p>
+<p>The issue with the original implementation was that the audio decoding routines for <em>all</em> supported codecs in the topology had
+to statically linked, drastically increasing the DSP&rsquo;s firmware binary size. We tried to solve this problem by dynamically loading
+the decoding libraries after the <em>codec</em> was initialised and just before the codec was required to start playing.</p>
+<h1 id="setting-up-the-hardware">Setting up the hardware</h1>
+<p>When I joined the project I did not have the necessary hardware to test the changes, so I was sent an NXP I.MX8. Being the first time
+I worked with embedded devices, setting up and booting this board was an adventure in and of itself :).</p>
+<p>NOTE: This short guide of setting up the board is written for the <em>Arch</em> based distribution <em>Manjaro</em>. Yea, I kinda use Arch btw :).</p>
+<h2 id="physical-setup">Physical setup</h2>
+<p>The main way of communicating with the board was using the serial console present on one of the usb ports. After a bit of troubleshooting
+<em>(one of the laptops I had did not properly recognize the USB device)</em>, I finally ended up at the U-Boot console. Here is where a cheat sheet
+made by one of the previous GSoC students came in useful. This ended up being the primary motivation for writing the setup guide :).</p>
+<h2 id="tftp-server">TFTP server</h2>
+<p>The board uses TFTP to get the kernel image and the dtb file. Installing the server was as easy as:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">sudo pacman -S tftp-hpa
+</code></pre></div><p>Now we need to point the <em>root</em> of the TFTP share to the folder where the image and dtb file are located:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">mkdir ~/&lt;tftp-folder-name&gt;
+</code></pre></div><p>Now that we have the folder we need to add it in the tftpd configuration file. The default configuration on Manjaro, at the time of writing
+should look something like this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">TFTP_USERNAME<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;tftp&#34;</span>
+TFTP_ADDRESS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;:69&#34;</span>
+TFTPD_ARGS<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;--secure /home/&lt;your-user&gt;/&lt;tftp-folder-name&gt;&#34;</span>
+</code></pre></div><p>The last thing we need to do is to actually start the tftp daemon:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">sudo systemctl start tftpd
+</code></pre></div><p>We can check if the server started correctly using the following command:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">sudo systemctl status tftpd
+</code></pre></div><p>If we do not see any red text we are most likely fine :).</p>
+<p>Now that our cool TFTP server is running we should check if it actually works as intended. Put any file in the directory you set in the config
+and then try to download it from your local machine using the tftp utility:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh"><span style="color:#75715e"># Connect to the TFTP server</span>
+tftp localhost <span style="color:#ae81ff">69</span> <span style="color:#75715e"># nice</span>
+
+<span style="color:#75715e"># Download the file</span>
+tftp&gt; get &lt;filename&gt;
+</code></pre></div><p>If this works, congratulations! We now have a working TFTP server, and our board will be able too <em>boot</em> the kernel. It actually doesn&rsquo;t boot successfully
+because we are kind of, maybe, missing the entire filesistem :^). After the obligatory self congratulatory head pat we shall continue to fixing the
+tiny <em>missing filesystem</em> problem.</p>
+<h2 id="nfs-server--rootfs">NFS server &amp; rootfs</h2>
+<p>First of all we need to get a <em>rootfs</em>, NXP offers a rootfs and kernel images for our board, but they are locked behind a login, so getting the actual
+files <em>is left as an exercise to the reader</em>.
+The filename for the I.MX8 is named <code>imx-image-multimedia-imx8qxpc0mek.tar.bz2</code>, <em>quite catchy</em>.
+With our rootfs in hand we proceed to extract it from the archive:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">mkdir &lt;rootfs-dir&gt;
+cd &lt;rootfs-dir&gt;
+tar xf &lt;rootfs-archive&gt;
+</code></pre></div><p>We now need to install the NFS server. On Manjaro we can achieve this by using the following command:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">sudo pacman -S nfs-utils
+</code></pre></div><p>After that, we need to add our rootfs folder to the <code>/etc/exports</code> file, in order to be able to mount it over the network.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh"><span style="color:#75715e"># /etc/exports - exports(5) - directories exported to NFS clients</span>
+<span style="color:#75715e">#</span>
+<span style="color:#75715e"># Example for NFSv2 and NFSv3:</span>
+<span style="color:#75715e">#  /srv/home        hostname1(rw,sync) hostname2(ro,sync)</span>
+<span style="color:#75715e"># Example for NFSv4:</span>
+<span style="color:#75715e">#  /srv/nfs4	    hostname1(rw,sync,fsid=0)</span>
+<span style="color:#75715e">#  /srv/nfs4/home   hostname1(rw,sync,nohide)</span>
+<span style="color:#75715e"># Using Kerberos and integrity checking:</span>
+<span style="color:#75715e">#  /srv/nfs4        *(rw,sync,sec=krb5i,fsid=0)</span>
+<span style="color:#75715e">#  /srv/nfs4/home   *(rw,sync,sec=krb5i,nohide)</span>
+<span style="color:#75715e">#</span>
+<span style="color:#75715e"># Use `exportfs -arv` to reload.</span>
+&lt;rootfs-dir&gt; *<span style="color:#f92672">(</span>rw,sync,no_root_squash,no_subtree_check<span style="color:#f92672">)</span>
+</code></pre></div><p>Using <em>*</em> after our directory means that the exported directory will be available to <em>ANY</em> device that can reach our computer, if you do not want this you need to later configure the board to have a static ip and replace the <code>*</code> with it.</p>
+<p>In order to make the changes take place we need to use the command given to us in that helpful comment:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">sudo exportfs -arv
+</code></pre></div><p>And finally we can check if our NFS server works correctly:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">sudo mount.nfs localhost:&lt;rootfs-dir&gt; &lt;mount-point&gt;
+</code></pre></div><p>If you <code>cd</code> into <code>&lt;mount-point&gt;</code> you should see the contents of the <code>&lt;rootfs-dir&gt;</code> directory.</p>
+<p>After another self congratulatory head pat we can finnaly go over to the board and tell it where to find our juicy files.</p>
+<h2 id="u-boot-configuration">U-Boot configuration</h2>
+<p>There were two ways of testing the changes we made to the firmware and kernel on the board:</p>
+<ul>
+<li>
+<p>Write the kernel, firmware and rootfs on the included SD card each time we made a change.</p>
+</li>
+<li>
+<p>Boot the board over the network, while having all of the necessary files on the development computer. <em>explained above</em></p>
+</li>
+</ul>
+<p>After a very brief discussion with the mentor we agreed that booting the board over the network was the fastest and least cumbersome way, like most stuff until now, this requires some <strong>configuration</strong> :^).</p>
+<p>We need to set some environment variables to tell the board what it needs to know in order to boot correctly and mount our remote filesystem, but first of all we need to connect the board to the network. This can be done in two ways:</p>
+<ul>
+<li>
+<p>Connect the board to your router</p>
+</li>
+<li>
+<p>Connect the board directly to the PC</p>
+</li>
+</ul>
+<p>Both of these require a spare ethernet port on the router/pc. I have tested both methods and, at lest for me, there does not
+seem to be a difference in trasfer speeds, so from now on we will use the first method.</p>
+<p>After the board is connected to the router we should make sure our PC has a IP address that does not change very often. This
+can be achieved from the router&rsquo;s graphical interface. Figuring out how to do this is left as <em>an exercise to the viewer :^)</em>.
+You should now be able to ping your PC from the board using the <code>ping &lt;ip&gt;</code> command.</p>
+<p>Time to setup the environment!</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-sh" data-lang="sh">setenv nfsroot &lt;rootfs-dir&gt; <span style="color:#75715e"># Absolute path to the rootfs directory</span>
+setenv image &lt;kernel-image&gt; <span style="color:#75715e"># Relative path from the TFTP directory to the kernel image</span>
+setenv fdt_file &lt;dtb-file&gt;  <span style="color:#75715e"># Relative path from the TFTP directory to the dtb file</span>
+setenv netargs <span style="color:#e6db74">&#39;setenv bootargs console=${console},${baudrate} ${smp} root=/dev/nfs ip=dhcp nfsroot=${serverip}:${nfsroot},v3,tcp&#39;</span>
+</code></pre></div><p>First we need to save these changes using <code>saveenv</code>. After that we can boot the board using <code>run netboot</code>, or
+we can set it to automatically boot over the network using <code>setenv bootcmd run netboot</code>. <em>FINALLY</em>
+the board is booting, now to the software side.</p>
+<h1 id="modifying-the-software">Modifying the software</h1>
+<h2 id="dynamic-loading">Dynamic loading</h2>
+<p>One of the biggest challenges we faced was trying to make the firmware work without having the required functions statically linked into it.</p>
+<p>The first thing we tried was looking into ways the compiler might help us, because it can already load
+libraries and resolve symbols at runtime. Unfortunately we hit giant wall: the fact that the firmware is
+running on the DSP, which has no clue what a filesystem or file is. This meant that we had
+to somehow interface with the linux kernel running on the <em>ARM</em> processor.</p>
+<p>But because we had already found a way to achieve what we wanted we opened a Pull Request with a
+mock-up implementation in order to receive some feedback.</p>
+<h2 id="actual-implementation">Actual implementation</h2>
+<p>We noticed that the symbol for the decoding function is resolved during the initialisation of the codec,
+wihch is done at boot time. This was a big no-no for our cause, so we went on a journey to find if we
+could maybe initialise the codec later. A suitable place was in the <code>cadence_codec_prepare</code> function
+that was called just before the actual decoding started.</p>
+<p>Because the decoding function was not used between <code>cadence_codec_init</code> and <code>cadence_codec_prepare</code>, we concluded that the API resolution can be moved in the latter.</p>
+<p>The first step was to add a new topology codec id that would signal to the firmware that this topology
+wants the decoding functions to be resolved at runtime, rather than them being statically linked.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-diff" data-lang="diff"> enum cadence_api_id {
+<span style="color:#a6e22e">+	CADENCE_CODEC_UNRESOLVED	= 0x00,
+</span><span style="color:#a6e22e"></span>  	CADENCE_CODEC_WRAPPER_ID	= 0x01,
+ 	CADENCE_CODEC_AAC_DEC_ID	= 0x02,
+ 	CADENCE_CODEC_BSAC_DEC_ID	= 0x03,
+ 	CADENCE_CODEC_DAB_DEC_ID	= 0x04,
+ 	CADENCE_CODEC_DRM_DEC_ID	= 0x05,
+ 	CADENCE_CODEC_MP3_DEC_ID	= 0x06,
+ 	CADENCE_CODEC_SBC_DEC_ID	= 0x07,
+ };
+</code></pre></div><p>And so, <code>CADENCE_CODEC_UNRESOLVED</code> was born.</p>
+<p>The next step was to properly handle topologies that use the <code>UNRESOLVED</code> codec.
+In order to keep the code clean and avoid duplication, the stuff that was not required during the
+initialization was moved from <code>cadence_codec_init</code> into a separate function <code>cadence_codec_post_init</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">cadence_codec_post_init</span>(<span style="color:#66d9ef">struct</span> comp_dev <span style="color:#f92672">*</span>dev, <span style="color:#66d9ef">uint32_t</span> api_id)
+{
+	<span style="color:#66d9ef">int</span> ret;
+	<span style="color:#66d9ef">struct</span> codec_data <span style="color:#f92672">*</span>codec <span style="color:#f92672">=</span> comp_get_codec(dev);
+	<span style="color:#66d9ef">struct</span> cadence_codec_data <span style="color:#f92672">*</span>cd <span style="color:#f92672">=</span> codec<span style="color:#f92672">-&gt;</span>private;
+	<span style="color:#66d9ef">uint32_t</span> obj_size;
+
+	<span style="color:#75715e">/* Resolve codec API for api_id */</span>
+	ret <span style="color:#f92672">=</span> cadence_codec_api_resolve(codec, api_id);
+	<span style="color:#66d9ef">if</span> (ret <span style="color:#f92672">!=</span> LIB_NO_ERROR) {
+		comp_err(dev, <span style="color:#e6db74">&#34;cadence_codec_post_init(): failed to resolve api for api id %d&#34;</span>,
+			 api_id);
+		<span style="color:#66d9ef">goto</span> out;
+	}
+
+	<span style="color:#75715e">/* Obtain codec name */</span>
+	API_CALL(cd, XA_API_CMD_GET_LIB_ID_STRINGS,
+		 XA_CMD_TYPE_LIB_NAME, cd<span style="color:#f92672">-&gt;</span>name, ret);
+	<span style="color:#66d9ef">if</span> (ret <span style="color:#f92672">!=</span> LIB_NO_ERROR) {
+		comp_err(dev, <span style="color:#e6db74">&#34;cadence_codec_post_init() error %x: failed to get lib name&#34;</span>,
+			 ret);
+		codec_free_memory(dev, cd);
+		<span style="color:#66d9ef">goto</span> out;
+	}
+	<span style="color:#75715e">/* Get codec object size */</span>
+	API_CALL(cd, XA_API_CMD_GET_API_SIZE, <span style="color:#ae81ff">0</span>, <span style="color:#f92672">&amp;</span>obj_size, ret);
+	<span style="color:#66d9ef">if</span> (ret <span style="color:#f92672">!=</span> LIB_NO_ERROR) {
+		comp_err(dev, <span style="color:#e6db74">&#34;cadence_codec_post_init() error %x: failed to get lib object size&#34;</span>,
+			 ret);
+		codec_free_memory(dev, cd);
+		<span style="color:#66d9ef">goto</span> out;
+	}
+	<span style="color:#75715e">/* Allocate space for codec object */</span>
+	cd<span style="color:#f92672">-&gt;</span>self <span style="color:#f92672">=</span> codec_allocate_memory(dev, obj_size, <span style="color:#ae81ff">0</span>);
+	<span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cd<span style="color:#f92672">-&gt;</span>self) {
+		comp_err(dev, <span style="color:#e6db74">&#34;cadence_codec_post_init(): failed to allocate space for lib object&#34;</span>);
+		codec_free_memory(dev, cd);
+		<span style="color:#66d9ef">goto</span> out;
+	} <span style="color:#66d9ef">else</span> {
+		comp_dbg(dev, <span style="color:#e6db74">&#34;cadence_codec_post_init(): allocated %d bytes for lib object&#34;</span>,
+			 obj_size);
+	}
+	<span style="color:#75715e">/* Set all params to their default values */</span>
+	API_CALL(cd, XA_API_CMD_INIT, XA_CMD_TYPE_INIT_API_PRE_CONFIG_PARAMS,
+		 NULL, ret);
+	<span style="color:#66d9ef">if</span> (ret <span style="color:#f92672">!=</span> LIB_NO_ERROR) {
+		comp_err(dev, <span style="color:#e6db74">&#34;cadence_codec_post_init(): error %x: failed to set default config&#34;</span>,
+			 ret);
+		<span style="color:#66d9ef">goto</span> out;
+	}
+
+	comp_dbg(dev, <span style="color:#e6db74">&#34;cadence_codec_post_init() done&#34;</span>);
+out:
+	<span style="color:#66d9ef">return</span> ret;
+}
+</code></pre></div><p>The <code>cadence_codec_init</code> function now checks if the topology&rsquo;s codec id is <code>CADENCE_CODEC_UNRESOLVED</code>,
+and delays resolution of the api and codec initialisation until <code>cadence_codec_prepare</code>, if that is the case.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">cadence_codec_init</span>(<span style="color:#66d9ef">struct</span> comp_dev <span style="color:#f92672">*</span>dev)
+{
+	<span style="color:#66d9ef">int</span> ret;
+	<span style="color:#66d9ef">struct</span> codec_data <span style="color:#f92672">*</span>codec <span style="color:#f92672">=</span> comp_get_codec(dev);
+	<span style="color:#66d9ef">struct</span> cadence_codec_data <span style="color:#f92672">*</span>cd <span style="color:#f92672">=</span> NULL;
+	<span style="color:#66d9ef">uint32_t</span> api_id <span style="color:#f92672">=</span> CODEC_GET_API_ID(codec<span style="color:#f92672">-&gt;</span>id);
+
+	comp_dbg(dev, <span style="color:#e6db74">&#34;cadence_codec_init(): start, api_id = %d&#34;</span>, api_id);
+
+	cd <span style="color:#f92672">=</span> codec_allocate_memory(dev, <span style="color:#66d9ef">sizeof</span>(<span style="color:#66d9ef">struct</span> cadence_codec_data), <span style="color:#ae81ff">0</span>);
+	<span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cd) {
+		comp_err(dev, <span style="color:#e6db74">&#34;cadence_codec_init(): failed to allocate memory for cadence codec data&#34;</span>);
+		<span style="color:#66d9ef">return</span> <span style="color:#f92672">-</span>ENOMEM;
+	}
+
+	codec<span style="color:#f92672">-&gt;</span>private <span style="color:#f92672">=</span> cd;
+	cd<span style="color:#f92672">-&gt;</span>self <span style="color:#f92672">=</span> NULL;
+	cd<span style="color:#f92672">-&gt;</span>mem_tabs <span style="color:#f92672">=</span> NULL;
+	cd<span style="color:#f92672">-&gt;</span>api <span style="color:#f92672">=</span> NULL;
+
+	<span style="color:#66d9ef">if</span> (api_id <span style="color:#f92672">==</span> CADENCE_CODEC_UNRESOLVED) {
+		comp_dbg(dev, <span style="color:#e6db74">&#34;cadence_codec_init(): codec unresolved, delaying api assignment until cadence_codec_prepare&#34;</span>);
+		<span style="color:#66d9ef">return</span> LIB_NO_ERROR;
+	}
+
+	ret <span style="color:#f92672">=</span> cadence_codec_post_init(dev, api_id);
+	<span style="color:#66d9ef">if</span> (ret <span style="color:#f92672">!=</span> LIB_NO_ERROR)
+		<span style="color:#66d9ef">goto</span> out;
+
+	comp_dbg(dev, <span style="color:#e6db74">&#34;cadence_codec_init(): done&#34;</span>);
+out:
+	<span style="color:#66d9ef">return</span> ret;
+}
+</code></pre></div><p>Because this was just a preliminary implementation, and some of the features we required from the kernel
+side were not in the upstream yet, we decided that for now, to make the firmware assume that a unresolved
+api is always the mp3 api, as a POC. This was submitted as a pull request. The use of a default codec was
+not really agreed upon, and was maybe a bit of mishap from our side, but we kept our heads up and decided to
+start working on the missing kernel features, but first&hellip; a message from our sponsor <em>Raid Shadow Shoddy M4 Scripts</em>.</p>
+<h1 id="fixing-a-variable-leak-in-topology-generation">&ldquo;Fixing&rdquo; a variable leak in topology generation</h1>
+<p>Before we figured out exactly what to do to get the kernel patches into the upstream, my mentor notified me
+of some simple issues that required fixing. One of them was the fact that the definition of the macro
+<em>CHANNELS_MIN</em> in one of the topology generation m4 scripts was leaking, because it was not being undefined.
+By some miracle this was not causing any issues right now, but it required immediate fixing.</p>
+<p>This is how the patch mostly looked:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-diff" data-lang="diff"><span style="color:#f92672">- ifdef(`CHANNELS_MIN&#39;,`&#39;,
+</span><span style="color:#f92672">- `define(CHANNELS_MIN, `PIPELINE_CHANNELS&#39;)&#39;)
+</span><span style="color:#f92672"></span><span style="color:#a6e22e">+ ifdef(`CHANNELS_MIN&#39;,`define(`LOCAL_CHANNELS_MIN&#39;, `CHANNELS_MIN&#39;)&#39;,
+</span><span style="color:#a6e22e">+ `define(`LOCAL_CHANNELS_MIN&#39; `PIPELINE_CHANNELS&#39;)&#39;)
+</span></code></pre></div><p>What could go wrong when editing two lines of code? Forgetting a comma :^) . Not even a day later I received
+some e-mail notifications about being meintioned on github. Another great move by the great Potochi. That was a
+nice mishap, let&rsquo;s move on.</p>
+<h1 id="making-intel-ipc-stream-operations-more-generic">Making Intel IPC stream operations more generic</h1>
+<p>While we were waiting on feedback from the dynamic loading pull request we decided to try to touch up some of
+Daniel&rsquo;s pull requests and get them merged into the SOF linux kernel fork.</p>
+<p>One of those was trying to make the operations of reading and writing to the mailboxes shared between the DSP
+and the main CPU more generic, thus creating a generic set of operations that every platform can customise.</p>
+<p>Here are the the function variables that were added:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">void</span> (<span style="color:#f92672">*</span>mailbox_read)(<span style="color:#66d9ef">struct</span> snd_sof_dev <span style="color:#f92672">*</span>sof_dev, u32 offset, <span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>dest, size_t size);
+<span style="color:#66d9ef">void</span> (<span style="color:#f92672">*</span>mailbox_write)(<span style="color:#66d9ef">struct</span> snd_sof_dev <span style="color:#f92672">*</span>sof_dev, u32 offset, <span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>src, size_t size);
+</code></pre></div><p>Because these functions are not mandatory, another layer of abstraction was put in place in form of two wrapper
+functions that check if the function is in fact used, and call it. If it is not used they simply return.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">snd_sof_dsp_mailbox_read</span>(<span style="color:#66d9ef">struct</span> snd_sof_dev <span style="color:#f92672">*</span>sdev,
+	u32 offset, <span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>dest, size_t bytes)
+{
+	<span style="color:#66d9ef">if</span> (sof_ops(sdev)<span style="color:#f92672">-&gt;</span>mailbox_read)
+		sof_ops(sdev)<span style="color:#f92672">-&gt;</span>mailbox_read(sdev, offset, dest, bytes);
+}
+
+<span style="color:#66d9ef">static</span> <span style="color:#66d9ef">inline</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">snd_sof_dsp_mailbox_write</span>(<span style="color:#66d9ef">struct</span> snd_sof_dev <span style="color:#f92672">*</span>sdev,
+	u32 offset, <span style="color:#66d9ef">void</span> <span style="color:#f92672">*</span>src, size_t bytes)
+{
+	<span style="color:#66d9ef">if</span> (sof_ops(sdev)<span style="color:#f92672">-&gt;</span>mailbox_write)
+		sof_ops(sdev)<span style="color:#f92672">-&gt;</span>mailbox_write(sdev, offset, src, bytes);
+}
+</code></pre></div><p>These functions are now shared between Intel and i.MX platforms. We hope that AMD will join us soon! :^)</p>
+<h1 id="introducing-fragment-elapsed-notification-api">Introducing fragment elapsed notification API</h1>
+<p>Another step towards getting to load decompression modules dynamically was getting to play compressed audio in the first place.
+Fristly, we needed a way to communicate when the DSP is ready to accept new fragments from the applications.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-c" data-lang="c"><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;sound/soc.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;sound/sof.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;sound/compress_driver.h&gt;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&#34;sof-audio.h&#34;</span><span style="color:#75715e">
+</span><span style="color:#75715e">#include</span> <span style="color:#75715e">&#34;sof-priv.h&#34;</span><span style="color:#75715e">
+</span><span style="color:#75715e"></span>
+<span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">snd_sof_compr_fragment_elapsed_work</span>(<span style="color:#66d9ef">struct</span> work_struct <span style="color:#f92672">*</span>work)
+{
+	<span style="color:#66d9ef">struct</span> snd_sof_pcm_stream <span style="color:#f92672">*</span>sps <span style="color:#f92672">=</span>
+		container_of(work, <span style="color:#66d9ef">struct</span> snd_sof_pcm_stream,
+			     period_elapsed_work);
+
+	snd_compr_fragment_elapsed(sps<span style="color:#f92672">-&gt;</span>cstream);
+}
+
+<span style="color:#66d9ef">void</span> <span style="color:#a6e22e">snd_sof_compr_init_elapsed_work</span>(<span style="color:#66d9ef">struct</span> work_struct <span style="color:#f92672">*</span>work)
+{
+	INIT_WORK(work, snd_sof_compr_fragment_elapsed_work);
+}
+
+<span style="color:#75715e">/*
+</span><span style="color:#75715e"> * sof compr fragment elapse, this could be called in irq thread context
+</span><span style="color:#75715e"> */</span>
+<span style="color:#66d9ef">void</span> <span style="color:#a6e22e">snd_sof_compr_fragment_elapsed</span>(<span style="color:#66d9ef">struct</span> snd_compr_stream <span style="color:#f92672">*</span>cstream)
+{
+	<span style="color:#66d9ef">struct</span> snd_soc_component <span style="color:#f92672">*</span>component;
+	<span style="color:#66d9ef">struct</span> snd_soc_pcm_runtime <span style="color:#f92672">*</span>rtd;
+	<span style="color:#66d9ef">struct</span> snd_sof_pcm <span style="color:#f92672">*</span>spcm;
+
+	<span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>cstream)
+		<span style="color:#66d9ef">return</span>;
+
+	rtd <span style="color:#f92672">=</span> cstream<span style="color:#f92672">-&gt;</span>private_data;
+	component <span style="color:#f92672">=</span> snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
+
+	spcm <span style="color:#f92672">=</span> snd_sof_find_spcm_dai(component, rtd);
+	<span style="color:#66d9ef">if</span> (<span style="color:#f92672">!</span>spcm) {
+		dev_err(component<span style="color:#f92672">-&gt;</span>dev,
+			<span style="color:#e6db74">&#34;fragment elapsed called for unknown stream!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+		<span style="color:#66d9ef">return</span>;
+	}
+
+	<span style="color:#75715e">/* use the same workqueue-based solution as for PCM, cf. snd_sof_pcm_elapsed */</span>
+	schedule_work(<span style="color:#f92672">&amp;</span>spcm<span style="color:#f92672">-&gt;</span>stream[cstream<span style="color:#f92672">-&gt;</span>direction].period_elapsed_work);
+}
+</code></pre></div><h1 id="final-conclusions">Final conclusions</h1>
+<p>I thoroughly enjoyed my time working on this project, and I feel that it has massively improved my abilities
+as a developer. I finally learned how to properly use git after a few years of thinking I did not need it because
+most of my projects were developed only by myself, and working for the first time with embedded linux has been
+a blast, configuring everything from the bootloader, to the kernel itself.</p>
+<p>I want to thank my awesome mentor, Daniel Baluta, again for always being there when I needed him and for being
+patient with the little dum dum that I was :).</p>
+<p>Even though we did not meet the primary goal of the proposal I feel that we set up some of the foundations that
+were needed for it, and I cannot wait to finish it after GSoC is over.</p>
+<p>Here is a list of all the pull requests:</p>
+<h2 id="sof-linux-kernel">SOF Linux Kernel</h2>
+<ul>
+<li><a href="https://github.com/thesofproject/linux/pull/3092">Make Intel IPC stream ops generic</a> [merged]</li>
+<li><a href="https://github.com/thesofproject/linux/pull/3093">Introduce fragment elapsed notification API</a> [approved, but not merged at the time of writing]</li>
+</ul>
+<h2 id="sof-project">SOF Project</h2>
+<ul>
+<li><a href="https://github.com/thesofproject/sof/pull/4572">Prepare for dynamic codec id</a> [not finished]</li>
+<li><a href="https://github.com/thesofproject/sof/pull/4604">Remove side effects from macro definitions</a> [merged, caused major issues :)]</li>
+<li><a href="https://github.com/thesofproject/sof/pull/4599">Add support for i.MX8ULP platform</a> [merged]</li>
+<li><a href="https://github.com/thesofproject/sof/pull/4592">Compile ESAI/SDMA support as separate modules</a> [merged]</li>
+</ul>
+
+    </div>
+    <div class="post-footer">
+      
+    </div>
+  </article>
+
+    </main>
+  </body>
+</html>

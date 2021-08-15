@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Potochi&#39;s Adventures</title>
+    <link>https://potochi.github.io/post/</link>
+    <description>Recent content in Posts on Potochi&#39;s Adventures</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en</language>
+    <lastBuildDate>Fri, 13 Aug 2021 13:34:04 +0300</lastBuildDate><atom:link href="https://potochi.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>GSoC: Sound Open Firmware</title>
+      <link>https://potochi.github.io/post/gsoc_sof/</link>
+      <pubDate>Fri, 13 Aug 2021 13:34:04 +0300</pubDate>
+      
+      <guid>https://potochi.github.io/post/gsoc_sof/</guid>
+      <description>Table of Contents
+ Introduction Setting up the hardware  Physical setup TFTP server NFS server &amp;amp; rootfs U-Boot configuration   Modifying the software  Dynamic loading Actual implementation   &amp;ldquo;Fixing&amp;rdquo; a variable leak in topology generation Making Intel IPC stream operations more generic Introducing fragment elapsed notification API Final conclusions  SOF Linux Kernel SOF Project    Introduction After wanting to work on an Open Source project for a long time, an opportunity finally presented itself.</description>
+    </item>
+    
+  </channel>
+</rss>
